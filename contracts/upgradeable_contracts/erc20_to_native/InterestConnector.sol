@@ -2,13 +2,14 @@ pragma solidity 0.4.24;
 
 import "../Ownable.sol";
 import "../ERC20Bridge.sol";
+import "../TokenSwapper.sol";
 import "../../interfaces/IInterestReceiver.sol";
 
 /**
  * @title InterestConnector
  * @dev This contract gives an abstract way of receiving interest on locked tokens.
  */
-contract InterestConnector is Ownable, ERC20Bridge {
+contract InterestConnector is Ownable, ERC20Bridge, TokenSwapper {
     event PaidInterest(address indexed token, address to, uint256 value);
 
     /**
