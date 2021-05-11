@@ -169,7 +169,7 @@ async function deployHomeOnDpos() {
     })
 
     console.log('\ninitializing Home Bridge Validators with following parameters:\n')
-    bridgeValidatorsHome.options.address = storageValidatorsHome.options.address
+    bridgeValidatorsHome.address = storageValidatorsHome.address
     await initializeValidators({
         contract: bridgeValidatorsHome,
         isRewardableBridge: isRewardableBridge && BLOCK_REWARD_ADDRESS === ZERO_ADDRESS,
@@ -177,26 +177,20 @@ async function deployHomeOnDpos() {
         validators: VALIDATORS,
         rewardAccounts: VALIDATORS_REWARD_ACCOUNTS,
         owner: HOME_VALIDATORS_OWNER,
-        nonce,
         url: HOME_RPC_URL
     })
-    nonce++
 
     console.log('transferring proxy ownership to multisig for Validators Proxy contract')
     await transferProxyOwnership({
         proxy: storageValidatorsHome,
         newOwner: HOME_UPGRADEABLE_ADMIN,
-        nonce,
         url: HOME_RPC_URL
     })
-    nonce++
 
     console.log('\ndeploying homeBridge storage\n')
     const homeBridgeStorage = await deployContract(EternalStorageProxy, [], {
         from: DEPLOYMENT_ACCOUNT_ADDRESS,
-        nonce
     })
-    nonce++
     console.log('[Home] HomeBridge Storage: ', homeBridgeStorage.options.address)
 
     console.log('\ndeploying homeBridge implementation\n')
@@ -204,9 +198,7 @@ async function deployHomeOnDpos() {
         isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS ? HomeBridgeErcToErcPOSDAO : HomeBridge
     const homeBridgeImplementation = await deployContract(bridgeContract, [], {
         from: DEPLOYMENT_ACCOUNT_ADDRESS,
-        nonce
     })
-    nonce++
     console.log('[Home] HomeBridge Implementation: ', homeBridgeImplementation.options.address)
 
     console.log('\nhooking up HomeBridge storage to HomeBridge implementation')
@@ -214,10 +206,8 @@ async function deployHomeOnDpos() {
         proxy: homeBridgeStorage,
         implementationAddress: homeBridgeImplementation.options.address,
         version: '1',
-        nonce,
         url: HOME_RPC_URL
     })
-    nonce++
 
     console.log('\n[Home] deploying Bridgeable token')
     const rewardable = (isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS) || DEPLOY_REWARDABLE_TOKEN
@@ -233,17 +223,14 @@ async function deployHomeOnDpos() {
         args,
         { from: DEPLOYMENT_ACCOUNT_ADDRESS, network: 'home', nonce }
     )
-    nonce++
     console.log('[Home] Bridgeable Token: ', erc677token.options.address)
 
     console.log('\nset bridge contract on ERC677BridgeToken')
     await setBridgeContract({
         contract: erc677token,
         bridgeAddress: homeBridgeStorage.options.address,
-        nonce,
         url: HOME_RPC_URL
     })
-    nonce++
 
     if ((isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS) || DEPLOY_REWARDABLE_TOKEN) {
         console.log('\nset BlockReward contract on ERC677BridgeTokenRewardable')
@@ -252,13 +239,11 @@ async function deployHomeOnDpos() {
             .encodeABI({ from: DEPLOYMENT_ACCOUNT_ADDRESS })
         const setBlockRewardContract = await sendRawTxHome({
             data: setBlockRewardContractData,
-            nonce,
             to: erc677token.options.address,
             privateKey: deploymentPrivateKey,
             url: HOME_RPC_URL
         })
         assert.strictEqual(Web3Utils.hexToNumber(setBlockRewardContract.status), 1, 'Transaction Failed')
-        nonce++
     }
 
     if (DEPLOY_REWARDABLE_TOKEN) {
@@ -268,23 +253,19 @@ async function deployHomeOnDpos() {
             .encodeABI({ from: DEPLOYMENT_ACCOUNT_ADDRESS })
         const setStakingContract = await sendRawTxHome({
             data: setStakingContractData,
-            nonce,
             to: erc677token.options.address,
             privateKey: deploymentPrivateKey,
             url: HOME_RPC_URL
         })
         assert.strictEqual(Web3Utils.hexToNumber(setStakingContract.status), 1, 'Transaction Failed')
-        nonce++
     }
 
     console.log('transferring ownership of Bridgeble token to homeBridge contract')
     await transferOwnership({
         contract: erc677token,
         newOwner: homeBridgeStorage.options.address,
-        nonce,
         url: HOME_RPC_URL
     })
-    nonce++
 
     console.log('\ninitializing Home Bridge with following parameters:\n')
     homeBridgeImplementation.options.address = homeBridgeStorage.options.address
@@ -300,7 +281,6 @@ async function deployHomeOnDpos() {
     await transferProxyOwnership({
         proxy: homeBridgeStorage,
         newOwner: HOME_UPGRADEABLE_ADMIN,
-        nonce,
         url: HOME_RPC_URL
     })
 

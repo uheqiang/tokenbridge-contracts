@@ -35,11 +35,11 @@ async function deployNativeToErc() {
 
 async function deployErcToErc() {
   const preDeploy = require('./src/erc_to_erc/preDeploy')
-  const deployHomeOnEthereum = require('./src/erc_to_erc/homeOnEthereum')
-  const deployForeign = require('./src/erc_to_erc/foreignOnEthereum')
+  const deployHomeOnDpos = require('./src/erc_to_erc/homeOnDpos')
+  const deployForeignOnEthereum = require('./src/erc_to_erc/foreignOnEthereum')
   await preDeploy()
-  const { homeBridge, erc677 } = await deployHomeOnEthereum()
-  const { foreignBridge } = await deployForeign()
+  const { homeBridge, erc677 } = await deployHomeOnDpos()
+  const { foreignBridge } = await deployForeignOnEthereum()
   console.log('\nDeployment has been completed.\n\n')
   console.log(`[   Home  ] HomeBridge: ${homeBridge.address} at block ${homeBridge.deployedBlockNumber}`)
   console.log(`[   Home  ] ERC677 Bridgeable Token: ${erc677.address}`)
@@ -47,7 +47,7 @@ async function deployErcToErc() {
   console.log(`[ Foreign ] ERC20 Token: ${ERC20_TOKEN_ADDRESS}`)
   writeDeploymentResults({
     homeBridge: {
-      ...homeBridge,
+      ...homeBridge,//todo 什么语法？
       erc677
     },
     foreignBridge: {

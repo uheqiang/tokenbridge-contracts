@@ -237,7 +237,6 @@ async function upgradeProxyOnDpos({ proxy, implementationAddress, version, url }
   const proxyContract = getContract(url, proxy)
   const txHash = await proxyContract.upgradeTo(version, implementationAddress).send()
   const result = await tronWebHome.trx.getTransaction(txHash)
-  //TODO 验证交易执行结果！
   assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 }
 
