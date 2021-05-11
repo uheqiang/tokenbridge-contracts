@@ -35,10 +35,10 @@ async function deployNativeToErc() {
 
 async function deployErcToErc() {
   const preDeploy = require('./src/erc_to_erc/preDeploy')
-  const deployHome = require('./src/erc_to_erc/home')
-  const deployForeign = require('./src/erc_to_erc/foreign')
+  const deployHomeOnEthereum = require('./src/erc_to_erc/homeOnEthereum')
+  const deployForeign = require('./src/erc_to_erc/foreignOnEthereum')
   await preDeploy()
-  const { homeBridge, erc677 } = await deployHome()
+  const { homeBridge, erc677 } = await deployHomeOnEthereum()
   const { foreignBridge } = await deployForeign()
   console.log('\nDeployment has been completed.\n\n')
   console.log(`[   Home  ] HomeBridge: ${homeBridge.address} at block ${homeBridge.deployedBlockNumber}`)

@@ -19,7 +19,8 @@
     "node-fetch": "^2.1.2",
     "promise-retry": "^1.1.1",
     "querystring": "^0.2.0",
-    "web3": "^1.2.9"
+    "web3": "^1.2.9",
+    "tronweb": "^3.2.6"
   },
   "devDependencies": {
     "eslint": "^5.6.0",

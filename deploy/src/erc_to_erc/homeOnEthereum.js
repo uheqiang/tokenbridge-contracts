@@ -147,7 +147,7 @@ async function initializeBridge({ validatorsBridge, bridge, erc677token, initial
   return nonce
 }
 
-async function deployHome() {
+async function deployHomeOnEthereum() {
   let nonce = await web3Home.eth.getTransactionCount(DEPLOYMENT_ACCOUNT_ADDRESS)
   console.log('deploying storage for home validators')
   const storageValidatorsHome = await deployContract(EternalStorageProxy, [], {
@@ -322,4 +322,4 @@ async function deployHome() {
     erc677: { address: erc677token.options.address }
   }
 }
-module.exports = deployHome
+module.exports = deployHomeOnEthereum
