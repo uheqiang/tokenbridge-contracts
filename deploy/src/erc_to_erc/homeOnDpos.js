@@ -5,18 +5,20 @@ const { ZERO_ADDRESS } = require('../constants')
 
 const {
     deployContractOnDpos,
-    privateKeyToAddress,
-    sendRawTxHome,
-    upgradeProxy,
+    // privateKeyToAddress,
+    // sendRawTxHome,
     upgradeProxyOnDpos,
     initializeValidators,
     transferProxyOwnership,
     setBridgeContract,
     transferOwnership,
-    assertStateWithRetry
-} = require('../deploymentUtils')
+    // assertStateWithRetry,
+    getContract,
+    sleep,
+    getTronWeb
+} = require('../deploymentUtilsOnDpos')
 
-const {deploymentPrivateKey, HOME_RPC_URL } = require('../tronWeb')
+const {deploymentPrivateKey, HOME_RPC_URL } = require('../tronWeb3')
 
 const {
     homeContracts: {
@@ -43,7 +45,7 @@ const {
     HOME_MAX_AMOUNT_PER_TX,
     HOME_MIN_AMOUNT_PER_TX,
     HOME_REQUIRED_BLOCK_CONFIRMATIONS,
-    // HOME_GAS_PRICE,
+    HOME_GAS_PRICE,
     BRIDGEABLE_TOKEN_NAME,
     BRIDGEABLE_TOKEN_SYMBOL,
     BRIDGEABLE_TOKEN_DECIMALS,
@@ -70,23 +72,20 @@ if (isRewardableBridge && BLOCK_REWARD_ADDRESS === ZERO_ADDRESS) {
     VALIDATORS_REWARD_ACCOUNTS = env.VALIDATORS_REWARD_ACCOUNTS.split(' ')
 }
 
-async function initializeBridge({ validatorsBridge, bridge, erc677token, initialNonce }) {
-    let nonce = initialNonce
-    let initializeHomeBridgeData
+async function initializeBridge({ validatorsBridge, bridge, erc677token }) {
+    let txHash
 
     if (isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS) {
         console.log('\ndeploying implementation for fee manager')
-        const feeManager = await deployContract(FeeManagerErcToErcPOSDAO, [], {
-            from: DEPLOYMENT_ACCOUNT_ADDRESS,
-            nonce
-        })
-        console.log('[Home] feeManager Implementation: ', feeManager.options.address)
-        nonce++
+        const feeManager = await deployContractOnDpos(FeeManagerErcToErcPOSDAO, [], "home")
+        console.log('[Home] feeManager Implementation: ', feeManager.address)
 
-        const homeFeeInWei = Web3Utils.toWei(HOME_TRANSACTIONS_FEE.toString(), 'ether')
-        const foreignFeeInWei = Web3Utils.toWei(FOREIGN_TRANSACTIONS_FEE.toString(), 'ether')
+        // const homeFeeInWei = Web3Utils.toWei(HOME_TRANSACTIONS_FEE.toString(), 'ether')
+        // const foreignFeeInWei = Web3Utils.toWei(FOREIGN_TRANSACTIONS_FEE.toString(), 'ether')
+        const homeFeeInWei = HOME_TRANSACTIONS_FEE
+        const foreignFeeInWei = FOREIGN_TRANSACTIONS_FEE
         console.log('\ninitializing Home Bridge with fee contract:\n')
-        console.log(`Home Validators: ${validatorsBridge.options.address},
+        /*console.log(`Home Validators: ${validatorsBridge.options.address},
     HOME_DAILY_LIMIT : ${HOME_DAILY_LIMIT} which is ${Web3Utils.fromWei(HOME_DAILY_LIMIT)} in eth,
     HOME_MAX_AMOUNT_PER_TX: ${HOME_MAX_AMOUNT_PER_TX} which is ${Web3Utils.fromWei(HOME_MAX_AMOUNT_PER_TX)} in eth,
     HOME_MIN_AMOUNT_PER_TX: ${HOME_MIN_AMOUNT_PER_TX} which is ${Web3Utils.fromWei(HOME_MIN_AMOUNT_PER_TX)} in eth,
@@ -94,10 +93,18 @@ async function initializeBridge({ validatorsBridge, bridge, erc677token, initial
     Block Reward: ${BLOCK_REWARD_ADDRESS},
     Fee Manager: ${feeManager.options.address},
     Home Fee: ${homeFeeInWei} which is ${HOME_TRANSACTIONS_FEE * 100}%
-    Foreign Fee: ${foreignFeeInWei} which is ${FOREIGN_TRANSACTIONS_FEE * 100}%`)
-        initializeHomeBridgeData = await bridge.methods
-            .rewardableInitialize(
-                validatorsBridge.options.address,
+    Foreign Fee: ${foreignFeeInWei} which is ${FOREIGN_TRANSACTIONS_FEE * 100}%`)*/
+        console.log(`Home Validators: ${validatorsBridge.options.address},
+                     HOME_GAS_PRICE: ${HOME_GAS_PRICE}, 
+                     HOME_REQUIRED_BLOCK_CONFIRMATIONS : ${HOME_REQUIRED_BLOCK_CONFIRMATIONS},
+                     Block Reward: ${BLOCK_REWARD_ADDRESS},
+                     Fee Manager: ${feeManager.options.address}`)
+
+        sleep(3000)
+
+        const bridgeContract = getContract(HOME_RPC_URL, bridge)
+        txHash = await bridgeContract.rewardableInitialize(
+                validatorsBridge.address,
                 [HOME_DAILY_LIMIT.toString(), HOME_MAX_AMOUNT_PER_TX.toString(), HOME_MIN_AMOUNT_PER_TX.toString()],
                 HOME_GAS_PRICE,
                 HOME_REQUIRED_BLOCK_CONFIRMATIONS,
@@ -108,8 +115,7 @@ async function initializeBridge({ validatorsBridge, bridge, erc677token, initial
                 [homeFeeInWei.toString(), foreignFeeInWei.toString()],
                 BLOCK_REWARD_ADDRESS,
                 foreignToHomeDecimalShift
-            )
-            .encodeABI()
+            ).send()
     } else {
         console.log(`Home Validators: ${validatorsBridge.options.address},
     HOME_DAILY_LIMIT : ${HOME_DAILY_LIMIT} which is HOME_DAILY_LIMIT in trx,
@@ -118,49 +124,66 @@ async function initializeBridge({ validatorsBridge, bridge, erc677token, initial
     HOME_REQUIRED_BLOCK_CONFIRMATIONS : ${HOME_REQUIRED_BLOCK_CONFIRMATIONS},
     FOREIGN_TO_HOME_DECIMAL_SHIFT: ${foreignToHomeDecimalShift}
     `)
-        initializeHomeBridgeData = await bridge.methods
-            .initialize(
-                validatorsBridge.options.address,
-                [HOME_DAILY_LIMIT.toString(), HOME_MAX_AMOUNT_PER_TX.toString(), HOME_MIN_AMOUNT_PER_TX.toString()],
-                HOME_GAS_PRICE,
-                HOME_REQUIRED_BLOCK_CONFIRMATIONS,
-                erc677token.options.address,
-                [FOREIGN_DAILY_LIMIT.toString(), FOREIGN_MAX_AMOUNT_PER_TX.toString()],
-                HOME_BRIDGE_OWNER,
-                foreignToHomeDecimalShift
-            )
-            .encodeABI()
+        const bridgeContract = getContract(HOME_RPC_URL, bridge)
+        // HomeBridgeErcToErcPOSDAO.sol or HomeBridgeErcToErc.sol
+        txHash = bridgeContract.initialize(
+            validatorsBridge.address,
+            [HOME_DAILY_LIMIT.toString(), HOME_MAX_AMOUNT_PER_TX.toString(), HOME_MIN_AMOUNT_PER_TX.toString()],
+            HOME_GAS_PRICE,
+            HOME_REQUIRED_BLOCK_CONFIRMATIONS,
+            erc677token.address,
+            [FOREIGN_DAILY_LIMIT.toString(), FOREIGN_MAX_AMOUNT_PER_TX.toString()],
+            HOME_BRIDGE_OWNER,
+            foreignToHomeDecimalShift
+        )
+        // initializeHomeBridgeData = await bridge.methods
+        //     .initialize(
+        //         validatorsBridge.address,
+        //         [HOME_DAILY_LIMIT.toString(), HOME_MAX_AMOUNT_PER_TX.toString(), HOME_MIN_AMOUNT_PER_TX.toString()],
+        //         HOME_GAS_PRICE,
+        //         HOME_REQUIRED_BLOCK_CONFIRMATIONS,
+        //         erc677token.address,
+        //         [FOREIGN_DAILY_LIMIT.toString(), FOREIGN_MAX_AMOUNT_PER_TX.toString()],
+        //         HOME_BRIDGE_OWNER,
+        //         foreignToHomeDecimalShift
+        //     ).encodeABI()
     }
 
-    const txInitializeHomeBridge = await sendRawTxHome({
-        data: initializeHomeBridgeData,
-        nonce,
-        to: bridge.options.address,
-        privateKey: deploymentPrivateKey,
-        url: HOME_RPC_URL
-    })
-    if (txInitializeHomeBridge.status) {
-        assert.strictEqual(Web3Utils.hexToNumber(txInitializeHomeBridge.status), 1, 'Transaction Failed')
-    } else {
-        await assertStateWithRetry(bridge.methods.isInitialized().call, true)
-    }
-    nonce++
+    sleep(3000)
 
-    return nonce
+    const tronWeb = getTronWeb(url)
+    const result = tronWeb.trx.getTransaction(txHash)
+    console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
+    assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
+
+    // const txInitializeHomeBridge = await sendRawTxHome({
+    //     data: initializeHomeBridgeData,
+    //     nonce,
+    //     to: bridge.options.address,
+    //     privateKey: deploymentPrivateKey,
+    //     url: HOME_RPC_URL
+    // })
+    // if (txInitializeHomeBridge.status) {
+    //     assert.strictEqual(Web3Utils.hexToNumber(txInitializeHomeBridge.status), 1, 'Transaction Failed')
+    // } else {
+    //     await assertStateWithRetry(bridge.methods.isInitialized().call, true)
+    // }
+
+    // return nonce
 }
 
 async function deployHomeOnDpos() {
-    console.log('deploying storage for home validators')
+    console.log('[Home] Deploying storage for home validators')
     const storageValidatorsHome = await deployContractOnDpos(EternalStorageProxy, [], "home")
     console.log('[Home] BridgeValidators Storage: ', storageValidatorsHome.address)
 
-    console.log('\ndeploying implementation for home validators')
+    console.log('\n[Home] Deploying implementation for home validators')
     const bridgeValidatorsContract =
         isRewardableBridge && BLOCK_REWARD_ADDRESS === ZERO_ADDRESS ? RewardableValidators : BridgeValidators
     const bridgeValidatorsHome = await deployContractOnDpos(bridgeValidatorsContract, [], "home")
     console.log('[Home] BridgeValidators Implementation: ', bridgeValidatorsHome.address)
 
-    console.log('\nhooking up eternal storage to BridgeValidators')
+    console.log('\n[Home] Hooking up eternal storage to BridgeValidators')
     await upgradeProxyOnDpos({
         proxy: storageValidatorsHome,
         implementationAddress: bridgeValidatorsHome.address,
@@ -168,7 +191,7 @@ async function deployHomeOnDpos() {
         url: HOME_RPC_URL
     })
 
-    console.log('\ninitializing Home Bridge Validators with following parameters:\n')
+    console.log('\n[Home] Initializing Home Bridge Validators with following parameters:\n')
     bridgeValidatorsHome.address = storageValidatorsHome.address
     await initializeValidators({
         contract: bridgeValidatorsHome,
@@ -180,117 +203,124 @@ async function deployHomeOnDpos() {
         url: HOME_RPC_URL
     })
 
-    console.log('transferring proxy ownership to multisig for Validators Proxy contract')
+    console.log('[Home] Transferring proxy ownership to multisig for Validators Proxy contract')
     await transferProxyOwnership({
         proxy: storageValidatorsHome,
         newOwner: HOME_UPGRADEABLE_ADMIN,
         url: HOME_RPC_URL
     })
 
-    console.log('\ndeploying homeBridge storage\n')
-    const homeBridgeStorage = await deployContract(EternalStorageProxy, [], {
-        from: DEPLOYMENT_ACCOUNT_ADDRESS,
-    })
-    console.log('[Home] HomeBridge Storage: ', homeBridgeStorage.options.address)
+    console.log('\n[Home] Deploying homeBridge storage\n')
+    const homeBridgeStorage = await deployContractOnDpos(EternalStorageProxy, [], "home")
+    console.log('[Home] HomeBridge Storage: ', homeBridgeStorage.address)
 
-    console.log('\ndeploying homeBridge implementation\n')
-    const bridgeContract =
-        isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS ? HomeBridgeErcToErcPOSDAO : HomeBridge
-    const homeBridgeImplementation = await deployContract(bridgeContract, [], {
-        from: DEPLOYMENT_ACCOUNT_ADDRESS,
-    })
-    console.log('[Home] HomeBridge Implementation: ', homeBridgeImplementation.options.address)
+    console.log('\n[Home] Deploying homeBridge implementation\n')
+    const bridgeContract = isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS ? HomeBridgeErcToErcPOSDAO : HomeBridge
+    const homeBridgeImplementation = await deployContractOnDpos(bridgeContract, [], "home")
+    console.log('[Home] HomeBridge Implementation: ', homeBridgeImplementation.address)
 
-    console.log('\nhooking up HomeBridge storage to HomeBridge implementation')
-    await upgradeProxy({
+    console.log('\n[Home] Hooking up HomeBridge storage to HomeBridge implementation')
+    await upgradeProxyOnDpos({
         proxy: homeBridgeStorage,
-        implementationAddress: homeBridgeImplementation.options.address,
+        implementationAddress: homeBridgeImplementation.address,
         version: '1',
         url: HOME_RPC_URL
     })
 
-    console.log('\n[Home] deploying Bridgeable token')
+    console.log('\n[Home] Deploying Bridgeable token')
     const rewardable = (isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS) || DEPLOY_REWARDABLE_TOKEN
     const erc677Contract = rewardable ? ERC677BridgeTokenRewardable : ERC677BridgeToken
     let args = [BRIDGEABLE_TOKEN_NAME, BRIDGEABLE_TOKEN_SYMBOL, BRIDGEABLE_TOKEN_DECIMALS]
-    if (rewardable) {
-        const chainId = await web3Home.eth.getChainId()
-        assert.strictEqual(chainId > 0, true, 'Invalid chain ID')
-        args.push(chainId)
-    }
-    const erc677token = await deployContract(
-        erc677Contract,
-        args,
-        { from: DEPLOYMENT_ACCOUNT_ADDRESS, network: 'home', nonce }
-    )
-    console.log('[Home] Bridgeable Token: ', erc677token.options.address)
+    // if (rewardable) {
+    //     const chainId = await web3Home.eth.getChainId()
+    //     assert.strictEqual(chainId > 0, true, 'Invalid chain ID')
+    //     args.push(chainId)
+    // }
+    const erc677token = await deployContractOnDpos(erc677Contract, args,'home')
+    console.log('[Home] Bridgeable Token: ', erc677token.address)
 
-    console.log('\nset bridge contract on ERC677BridgeToken')
+    console.log('\n[Home] Set bridge contract on ERC677BridgeToken')
     await setBridgeContract({
         contract: erc677token,
-        bridgeAddress: homeBridgeStorage.options.address,
+        bridgeAddress: homeBridgeStorage.address,
         url: HOME_RPC_URL
     })
 
     if ((isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS) || DEPLOY_REWARDABLE_TOKEN) {
-        console.log('\nset BlockReward contract on ERC677BridgeTokenRewardable')
-        const setBlockRewardContractData = await erc677token.methods
-            .setBlockRewardContract(BLOCK_REWARD_ADDRESS)
-            .encodeABI({ from: DEPLOYMENT_ACCOUNT_ADDRESS })
-        const setBlockRewardContract = await sendRawTxHome({
-            data: setBlockRewardContractData,
-            to: erc677token.options.address,
-            privateKey: deploymentPrivateKey,
-            url: HOME_RPC_URL
-        })
-        assert.strictEqual(Web3Utils.hexToNumber(setBlockRewardContract.status), 1, 'Transaction Failed')
+        console.log('\n[Home] Set BlockReward contract on ERC677BridgeTokenRewardable')
+        const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
+        const txHash = await erc677BridgeTokenContact.setBlockRewardContract(BLOCK_REWARD_ADDRESS).send()
+
+        sleep(3000)
+
+        const tronWeb = getTronWeb(url)
+        const result = tronWeb.trx.getTransaction(txHash)
+        console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
+        assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
+        // const setBlockRewardContract = await sendRawTxHome({
+        //     data: setBlockRewardContractData,
+        //     to: erc677token.options.address,
+        //     privateKey: deploymentPrivateKey,
+        //     url: HOME_RPC_URL
+        // })
+        // assert.strictEqual(Web3Utils.hexToNumber(setBlockRewardContract.status), 1, 'Transaction Failed')
     }
 
     if (DEPLOY_REWARDABLE_TOKEN) {
-        console.log('\nset Staking contract on ERC677BridgeTokenRewardable')
-        const setStakingContractData = await erc677token.methods
-            .setStakingContract(DPOS_STAKING_ADDRESS)
-            .encodeABI({ from: DEPLOYMENT_ACCOUNT_ADDRESS })
-        const setStakingContract = await sendRawTxHome({
-            data: setStakingContractData,
-            to: erc677token.options.address,
-            privateKey: deploymentPrivateKey,
-            url: HOME_RPC_URL
-        })
-        assert.strictEqual(Web3Utils.hexToNumber(setStakingContract.status), 1, 'Transaction Failed')
+        console.log('\n[Home] set Staking contract on ERC677BridgeTokenRewardable')
+        const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
+        const txHash = await erc677BridgeTokenContact.setStakingContract(DPOS_STAKING_ADDRESS).send()
+
+        sleep(3000)
+
+        const tronWeb = getTronWeb(url)
+        const result = tronWeb.trx.getTransaction(txHash)
+        console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
+        assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
+        // const setStakingContractData = await erc677token.methods
+        //     .setStakingContract(DPOS_STAKING_ADDRESS)
+        //     .encodeABI({ from: DEPLOYMENT_ACCOUNT_ADDRESS })
+        // const setStakingContract = await sendRawTxHome({
+        //     data: setStakingContractData,
+        //     to: erc677token.options.address,
+        //     privateKey: deploymentPrivateKey,
+        //     url: HOME_RPC_URL
+        // })
+        // assert.strictEqual(Web3Utils.hexToNumber(setStakingContract.status), 1, 'Transaction Failed')
     }
 
-    console.log('transferring ownership of Bridgeble token to homeBridge contract')
+    console.log('[Home] transferring ownership of Bridgeble token to homeBridge contract')
     await transferOwnership({
         contract: erc677token,
-        newOwner: homeBridgeStorage.options.address,
+        newOwner: homeBridgeStorage.address,
         url: HOME_RPC_URL
     })
 
-    console.log('\ninitializing Home Bridge with following parameters:\n')
-    homeBridgeImplementation.options.address = homeBridgeStorage.options.address
+    console.log('\n[Home] initializing Home Bridge with following parameters:\n')
+    homeBridgeImplementation.address = homeBridgeStorage.address
 
-    nonce = await initializeBridge({
+    //TODO initializeBridge
+    await initializeBridge({
         validatorsBridge: storageValidatorsHome,
         bridge: homeBridgeImplementation,
-        erc677token,
-        initialNonce: nonce
+        erc677token
     })
 
-    console.log('transferring proxy ownership to multisig for Home bridge Proxy contract')
+    console.log('[Home] transferring proxy ownership to multisig for Home bridge Proxy contract')
     await transferProxyOwnership({
         proxy: homeBridgeStorage,
         newOwner: HOME_UPGRADEABLE_ADMIN,
         url: HOME_RPC_URL
     })
 
-    console.log('\nHome Deployment Bridge completed\n')
+    console.log('\n[Home] Home Deployment Bridge completed\n')
     return {
         homeBridge: {
-            address: homeBridgeStorage.options.address,
+            address: homeBridgeStorage.address,
+            //todo
             deployedBlockNumber: Web3Utils.hexToNumber(homeBridgeStorage.deployedBlockNumber)
         },
-        erc677: { address: erc677token.options.address }
+        erc677: { address: erc677token.address }
     }
 }
 module.exports = deployHomeOnDpos

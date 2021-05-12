@@ -21,46 +21,7 @@ const {
   HOME_EXPLORER_API_KEY,
   FOREIGN_EXPLORER_API_KEY
 } = require('./web3')
-
-const {
-  // web3Home,
-  // web3Foreign,
-  tronWebHome,
-  tronWebForeign,
-  // deploymentPrivateKey,
-  // HOME_RPC_URL,
-  // FOREIGN_RPC_URL,
-  // GAS_LIMIT_EXTRA,
-  // HOME_DEPLOYMENT_GAS_PRICE,
-  // FOREIGN_DEPLOYMENT_GAS_PRICE,
-  // GET_RECEIPT_INTERVAL_IN_MILLISECONDS,
-  // HOME_EXPLORER_URL,
-  // FOREIGN_EXPLORER_URL,
-  // HOME_EXPLORER_API_KEY,
-  // FOREIGN_EXPLORER_API_KEY
-} = require('./tronWeb')
-
 const verifier = require('./utils/verifier')
-
-async function deployContractOnDpos(contractJson, args, network) {
-  let tronWeb
-  if (network === 'foreign') {
-    tronWeb = tronWebForeign
-  } else {
-    tronWeb = tronWebHome
-  }
-  let contract_instance = await tronWeb.contract().new({
-    abi:contractJson.abi,
-    bytecode:contractJson.bytecode,
-    feeLimit:1000000000,
-    callValue:0,
-    userFeePercentage:1,
-    originEnergyLimit:10000000,
-    parameters:args
-  });
-  //console.log("contract address on dpos network: ", contract_instance.address);
-  return contract_instance;
-}
 
 async function deployContract(contractJson, args, { from, network, nonce }) {
   let web3
@@ -86,11 +47,11 @@ async function deployContract(contractJson, args, { from, network, nonce }) {
   }
   const instance = new web3.eth.Contract(contractJson.abi, options)
   const result = await instance
-    .deploy({
-      data: contractJson.bytecode,
-      arguments: args
-    })
-    .encodeABI()
+      .deploy({
+        data: contractJson.bytecode,
+        arguments: args
+      })
+      .encodeABI()
   const tx = await sendRawTx({
     data: result,
     nonce: Web3Utils.toHex(nonce),
@@ -144,7 +105,7 @@ async function sendRawTx({ data, nonce, to, privateKey, url, gasPrice, value }) 
     const blockGasLimit = BigNumber(blockData.gasLimit)
     if (estimatedGas.isGreaterThan(blockGasLimit)) {
       throw new Error(
-        `estimated gas greater (${estimatedGas.toString()}) than the block gas limit (${blockGasLimit.toString()})`
+          `estimated gas greater (${estimatedGas.toString()}) than the block gas limit (${blockGasLimit.toString()})`
       )
     }
     let gas = estimatedGas.multipliedBy(BigNumber(1 + GAS_LIMIT_EXTRA))
@@ -232,14 +193,6 @@ function logValidatorsAndRewardAccounts(validators, rewards) {
   })
 }
 
-async function upgradeProxyOnDpos({ proxy, implementationAddress, version, url }) {
-  // const proxyContract = await tronWebHome.contract.at(proxy.address)
-  const proxyContract = getContract(url, proxy)
-  const txHash = await proxyContract.upgradeTo(version, implementationAddress).send()
-  const result = await tronWebHome.trx.getTransaction(txHash)
-  assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
-}
-
 async function upgradeProxy({ proxy, implementationAddress, version, nonce, url }) {
   const data = await proxy.methods.upgradeTo(version, implementationAddress).encodeABI()
   const sendTx = getSendTxMethod(url)
@@ -309,15 +262,15 @@ async function setBridgeContract({ contract, bridgeAddress, nonce, url }) {
 }
 
 async function initializeValidators({
-  contract,
-  isRewardableBridge,
-  requiredNumber,
-  validators,
-  rewardAccounts,
-  owner,
-  nonce,
-  url
-}) {
+                                      contract,
+                                      isRewardableBridge,
+                                      requiredNumber,
+                                      validators,
+                                      rewardAccounts,
+                                      owner,
+                                      nonce,
+                                      url
+                                    }) {
   let data
 
   if (isRewardableBridge) {
@@ -326,7 +279,7 @@ async function initializeValidators({
     data = await contract.methods.initialize(requiredNumber, validators, rewardAccounts, owner).encodeABI()
   } else {
     console.log(
-      `REQUIRED_NUMBER_OF_VALIDATORS: ${requiredNumber}, VALIDATORS: ${validators}, VALIDATORS_OWNER: ${owner}`
+        `REQUIRED_NUMBER_OF_VALIDATORS: ${requiredNumber}, VALIDATORS: ${validators}, VALIDATORS_OWNER: ${owner}`
     )
     data = await contract.methods.initialize(requiredNumber, validators, owner).encodeABI()
   }
@@ -358,16 +311,6 @@ function getSendTxMethod(url) {
   return url === HOME_RPC_URL ? sendRawTxHome : sendRawTxForeign
 }
 
-async function getContract(url, proxy) {
-  let proxyContract;
-  if (url === HOME_RPC_URL) {
-    proxyContract = await tronWebHome.contract.at(proxy.address)
-  } else {
-    proxyContract = await tronWebForeign.contract.at(proxy.address)
-  }
-  return proxyContract
-}
-
 async function isContract(web3, address) {
   const code = await web3.eth.getCode(address)
   return code !== '0x' && code !== '0x0'
@@ -375,13 +318,11 @@ async function isContract(web3, address) {
 
 module.exports = {
   deployContract,
-  deployContractOnDpos,
   sendRawTxHome,
   sendRawTxForeign,
   privateKeyToAddress,
   // logValidatorsAndRewardAccounts,
   upgradeProxy,
-  upgradeProxyOnDpos,
   initializeValidators,
   transferProxyOwnership,
   transferOwnership,
