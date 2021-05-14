@@ -162,8 +162,10 @@ function logValidatorsAndRewardAccounts(validators, rewards) {
 async function upgradeProxyOnDpos({ proxy, implementationAddress, version, url }) {
     // const proxyContract = await tronWebHome.contract.at(proxy.address)
     const proxyContract = getContract(url, proxy.address)
+    //todo 合约方法名称“”“”“”“”“‘upgradeTo’不高亮
     const txHash = await proxyContract.upgradeTo(version, implementationAddress).send()
 
+    //todo
     await sleep(3000)
 
     const tronWeb = getTronWeb(url)
@@ -217,6 +219,7 @@ async function transferProxyOwnership({ proxy, newOwner, url }) {
 
 async function transferOwnership({ contract, newOwner, nonce, url }) {
     const erc677BridgeTokenContact = getContract(url, contract.address)
+    //todo 函数名称‘transferOwnership’重复
     const txHash = await erc677BridgeTokenContact.transferOwnership(newOwner).send()
 
     await sleep(3000)
@@ -275,13 +278,14 @@ async function initializeValidators({contract, isRewardableBridge, requiredNumbe
         console.log(`REQUIRED_NUMBER_OF_VALIDATORS: ${requiredNumber}, VALIDATORS_OWNER: ${owner}`)
         logValidatorsAndRewardAccounts(validators, rewardAccounts)
         // todo RewardableValidators.sol
-        txHash = await proxyContract.initialize(requiredNumber, validators, rewardAccounts, owner)
+        txHash = await proxyContract.initialize(requiredNumber, validators, rewardAccounts, owner).send()
     } else {
         console.log(`REQUIRED_NUMBER_OF_VALIDATORS: ${requiredNumber}, VALIDATORS: ${validators}, VALIDATORS_OWNER: ${owner}`)
         // todo BridgeValidators.sol
         txHash = await proxyContract.initialize(requiredNumber, validators, owner).send()
     }
-    const result = await tronWebHome.trx.getTransaction(txHash)
+    const tronWeb = getTronWeb(url)
+    const result = await tronWeb.trx.getTransaction(txHash)
     console.log('[home] Initialize validators on dpos, tx exec status: ', result.ret[0].contractRet)
     assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 }

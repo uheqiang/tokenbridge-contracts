@@ -183,6 +183,8 @@ async function deployHomeOnDpos() {
     const bridgeValidatorsHome = await deployContractOnDpos(bridgeValidatorsContract, [], "home")
     console.log('[Home] BridgeValidators Implementation: ', bridgeValidatorsHome.address)
 
+    //todo 检测合约是否存在！bridgeValidatorsContract、storageValidatorsHome
+
     console.log('\n[Home] Hooking up eternal storage to BridgeValidators')
     await upgradeProxyOnDpos({
         proxy: storageValidatorsHome,
@@ -249,6 +251,7 @@ async function deployHomeOnDpos() {
     if ((isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS) || DEPLOY_REWARDABLE_TOKEN) {
         console.log('\n[Home] Set BlockReward contract on ERC677BridgeTokenRewardable')
         const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
+        //todo 合约方法不高亮
         const txHash = await erc677BridgeTokenContact.setBlockRewardContract(BLOCK_REWARD_ADDRESS).send()
 
         sleep(3000)
@@ -269,6 +272,7 @@ async function deployHomeOnDpos() {
     if (DEPLOY_REWARDABLE_TOKEN) {
         console.log('\n[Home] set Staking contract on ERC677BridgeTokenRewardable')
         const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
+        //todo 合约方法不高亮
         const txHash = await erc677BridgeTokenContact.setStakingContract(DPOS_STAKING_ADDRESS).send()
 
         sleep(3000)
@@ -299,7 +303,6 @@ async function deployHomeOnDpos() {
     console.log('\n[Home] initializing Home Bridge with following parameters:\n')
     homeBridgeImplementation.address = homeBridgeStorage.address
 
-    //TODO initializeBridge
     await initializeBridge({
         validatorsBridge: storageValidatorsHome,
         bridge: homeBridgeImplementation,

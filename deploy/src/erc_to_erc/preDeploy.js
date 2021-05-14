@@ -7,6 +7,7 @@ const {
   DEPLOY_REWARDABLE_TOKEN,
   DPOS_STAKING_ADDRESS
 } = require('../loadEnv')
+const { tronWebHome } = require('./tronWeb3')
 const { isContract } = require('../deploymentUtils')
 const {
   foreignContracts: {
@@ -28,7 +29,7 @@ async function preDeploy() {
   }
 
   if (HOME_REWARDABLE === 'BOTH_DIRECTIONS') {
-    const isBlockRewardAContract = await isContract(web3Home, BLOCK_REWARD_ADDRESS)
+    const isBlockRewardAContract = await isContractOnDpos(tronWebHome, BLOCK_REWARD_ADDRESS)
     if (!isBlockRewardAContract) {
       throw new Error(`BLOCK_REWARD_ADDRESS should be a contract address`)
     }

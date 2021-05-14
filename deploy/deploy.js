@@ -47,7 +47,7 @@ async function deployErcToErc() {
   console.log(`[ Foreign ] ERC20 Token: ${ERC20_TOKEN_ADDRESS}`)
   writeDeploymentResults({
     homeBridge: {
-      ...homeBridge,//todo 什么语法？
+      ...homeBridge,
       erc677
     },
     foreignBridge: {
