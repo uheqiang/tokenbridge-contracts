@@ -8,8 +8,8 @@ const assert = require('assert')
 // const promiseRetry = require('promise-retry')
 
 const {
-    tronWebHome,
-    tronWebForeign,
+    khcWebHome,
+    khcWebForeign,
     // deploymentPrivateKey,
     HOME_RPC_URL
     // ,
@@ -22,16 +22,16 @@ const {
     // FOREIGN_EXPLORER_URL,
     // HOME_EXPLORER_API_KEY,
     // FOREIGN_EXPLORER_API_KEY
-} = require('./tronWeb3')
+} = require('./khcWeb3')
 
 async function deployContractOnDpos(contractJson, args, network) {
-    let tronWeb
+    let khcWeb
     if (network === 'foreign') {
-        tronWeb = tronWebForeign
+        khcWeb = khcWebForeign
     } else {
-        tronWeb = tronWebHome
+        khcWeb = khcWebHome
     }
-    let contract_instance = await tronWeb.contract().new({
+    let contract_instance = await khcWeb.contract().new({
         abi:contractJson.abi,
         bytecode:contractJson.bytecode,
         feeLimit:1000000000,
@@ -40,7 +40,11 @@ async function deployContractOnDpos(contractJson, args, network) {
         originEnergyLimit:10000000,
         parameters:args
     });
-    console.log("[home] Contract address on dpos network: ", contract_instance.address);
+    console.log("[home] Contract address on dpos network: ", contract_instance.address)
+    console.log("Verify that this contract was successfully deployed ...")
+
+    const result = checkContract(khcWeb, contract_instance.address)
+    assert.strictEqual(result, true, 'Contract deploy failed')
     return contract_instance;
 }
 
@@ -162,17 +166,18 @@ function logValidatorsAndRewardAccounts(validators, rewards) {
 async function upgradeProxyOnDpos({ proxy, implementationAddress, version, url }) {
     // const proxyContract = await tronWebHome.contract.at(proxy.address)
     const proxyContract = getContract(url, proxy.address)
-    //todo 合约方法名称“”“”“”“”“‘upgradeTo’不高亮
     const txHash = await proxyContract.upgradeTo(version, implementationAddress).send()
 
-    //todo
-    await sleep(3000)
-
-    const tronWeb = getTronWeb(url)
-    const result = tronWeb.trx.getTransaction(txHash)
+    // todo
+    // await sleep(3000)
+    // const tronWeb = getTronWeb(url)
+    // const result = tronWeb.trx.getTransaction(txHash)
+    const result = getTxStatus(url, txHash)
     console.log('[home] Update proxy on dpos, tx exec status: ', result.ret[0].contractRet)
     assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 }
+
+
 
 // async function upgradeProxy({ proxy, implementationAddress, version, nonce, url }) {
 //     const data = await proxy.methods.upgradeTo(version, implementationAddress).encodeABI()
@@ -195,10 +200,10 @@ async function transferProxyOwnership({ proxy, newOwner, url }) {
     const proxyContract = getContract(url, proxy.address)
     const txHash = await proxyContract.transferProxyOwnership(newOwner).send()
 
-    await sleep(3000)
-
-    const tronWeb = getTronWeb(url)
-    const result = tronWeb.trx.getTransaction(txHash)
+    // await sleep(3000)
+    // const tronWeb = getTronWeb(url)
+    // const result = tronWeb.trx.getTransaction(txHash)
+    const result = getTxStatus(url, txHash)
     console.log('[home] Transfer proxy ownership, tx exec status: ', result.ret[0].contractRet)
     assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 
@@ -219,13 +224,12 @@ async function transferProxyOwnership({ proxy, newOwner, url }) {
 
 async function transferOwnership({ contract, newOwner, nonce, url }) {
     const erc677BridgeTokenContact = getContract(url, contract.address)
-    //todo 函数名称‘transferOwnership’重复
     const txHash = await erc677BridgeTokenContact.transferOwnership(newOwner).send()
 
-    await sleep(3000)
-
-    const tronWeb = getTronWeb(url)
-    const result = tronWeb.trx.getTransaction(txHash)
+    // await sleep(3000)
+    // const tronWeb = getTronWeb(url)
+    // const result = tronWeb.trx.getTransaction(txHash)
+    const result = getTxStatus(url, txHash)
     console.log('[home] Transfer ownership, tx exec status: ', result.ret[0].contractRet)
     assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 
@@ -249,10 +253,10 @@ async function setBridgeContract({ contract, bridgeAddress, nonce, url }) {
     const erc677BridgeTokenContract = getContract(url, contract.address)
     const txHash = await erc677BridgeTokenContract.setBridgeContract(bridgeAddress).send()
 
-    await sleep(3000)
-
-    const tronWeb = getTronWeb(url)
-    const result = tronWeb.trx.getTransaction(txHash)
+    // await sleep(3000)
+    // const tronWeb = getTronWeb(url)
+    // const result = tronWeb.trx.getTransaction(txHash)
+    const result = getTxStatus(url, txHash)
     console.log('[home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
     assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 
@@ -284,8 +288,9 @@ async function initializeValidators({contract, isRewardableBridge, requiredNumbe
         // todo BridgeValidators.sol
         txHash = await proxyContract.initialize(requiredNumber, validators, owner).send()
     }
-    const tronWeb = getTronWeb(url)
-    const result = await tronWeb.trx.getTransaction(txHash)
+    // const tronWeb = getTronWeb(url)
+    // const result = await tronWeb.trx.getTransaction(txHash)
+    const result = getTxStatus(url, txHash)
     console.log('[home] Initialize validators on dpos, tx exec status: ', result.ret[0].contractRet)
     assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 }
@@ -307,19 +312,47 @@ async function sleep(millis = 3000){
     return new Promise(resolve => setTimeout(resolve, millis));
 }
 
-async function getContract(url, contractAddress) {
-    const tronWeb = getTronWeb(url)
-    return await tronWeb.contract().at(contractAddress)
+async function getTxStatus(url, txHash) {
+    let times = 0
+    let result
+    while (times < 2){
+        await sleep()
+        const tronWeb = getKhcWeb(url)
+        result = tronWeb.khc.getTransaction(txHash)
+        if (result){
+            break
+        }
+    }
+    return result
 }
 
-function getTronWeb(url) {
-    let tronWeb;
-    if (url === HOME_RPC_URL) {
-        tronWeb = tronWebHome
-    } else {
-        tronWeb = tronWebForeign
+async function checkContract(khcWeb, contractAddress) {
+    let times = 0
+    while (times < 6){
+        await sleep()
+        // khcWeb.khc.getContract(contractAddress).then(console.log)
+        const result = khcWeb.khc.getContract(contractAddress)
+        if (result && result.bytecode){
+            return true
+        }
+        times++
     }
-    return tronWeb
+    return false
+}
+
+async function getContract(url, contractAddress) {
+    const khcWeb = getKhcWeb(url)
+    return await khcWeb.contract().at(contractAddress)
+}
+
+function getKhcWeb(url) {
+    let khcWeb;
+    if (url === HOME_RPC_URL) {
+        khcWeb = khcWebHome
+    } else {
+        khcWeb = khcWebForeign
+    }
+    return khcWeb
 }
 
 // async function isContract(web3, address) {
@@ -341,7 +374,8 @@ module.exports = {
     setBridgeContract,
     // assertStateWithRetry,
     // isContract,
+    getTxStatus,
     getContract,
     sleep,
-    getTronWeb
+    getKhcWeb
 }

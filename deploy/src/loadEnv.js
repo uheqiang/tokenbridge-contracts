@@ -25,9 +25,10 @@ const validRewardModes = ['false', 'ONE_DIRECTION', 'BOTH_DIRECTIONS']
 const validFeeManagerTypes = ['BRIDGE_VALIDATORS_REWARD', 'POSDAO_REWARD']
 const bigNumValidator = envalid.makeValidator(x => toBN(x))
 const validateAddress = address => {
-  if (isAddress(address)) {
-    return address
-  }
+  // if (isAddress(address)) {
+  //   return address
+  // }
+  return address
 
   throw new Error(`Invalid address: ${address}`)
 }

@@ -21,7 +21,6 @@ const {
   HOME_EXPLORER_API_KEY,
   FOREIGN_EXPLORER_API_KEY
 } = require('./web3')
-const { tronWebHome} = require('../tronWeb3')
 const verifier = require('./utils/verifier')
 
 async function deployContract(contractJson, args, { from, network, nonce }) {
@@ -319,7 +318,7 @@ async function isContract(web3, address) {
 
 async function isContractOnDpos(tronWebHome, address) {
   const result = await tronWebHome.trx.getContract(address)
-  return result !== '' && result.bytecode !== ''
+  return result && result.bytecode
 }
 
 module.exports = {

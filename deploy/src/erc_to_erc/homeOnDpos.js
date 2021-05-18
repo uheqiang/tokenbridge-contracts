@@ -13,12 +13,13 @@ const {
     setBridgeContract,
     transferOwnership,
     // assertStateWithRetry,
+    getTxStatus,
     getContract,
     sleep,
-    getTronWeb
+    getKhcWeb
 } = require('../deploymentUtilsOnDpos')
 
-const {deploymentPrivateKey, HOME_RPC_URL } = require('../tronWeb3')
+const {deploymentPrivateKey, HOME_RPC_URL } = require('../khcWeb3')
 
 const {
     homeContracts: {
@@ -36,7 +37,7 @@ const {
 const VALIDATORS = env.VALIDATORS.split(' ')
 
 const {
-    DEPLOYMENT_ACCOUNT_PRIVATE_KEY,
+    KHC_DEPLOYMENT_ACCOUNT_PRIVATE_KEY,
     REQUIRED_NUMBER_OF_VALIDATORS,
     HOME_BRIDGE_OWNER,
     HOME_VALIDATORS_OWNER,
@@ -60,7 +61,7 @@ const {
     FOREIGN_TO_HOME_DECIMAL_SHIFT
 } = env
 
-const DEPLOYMENT_ACCOUNT_ADDRESS = privateKeyToAddress(DEPLOYMENT_ACCOUNT_PRIVATE_KEY)
+// const DEPLOYMENT_ACCOUNT_ADDRESS = privateKeyToAddress(DEPLOYMENT_ACCOUNT_PRIVATE_KEY)
 
 const foreignToHomeDecimalShift = FOREIGN_TO_HOME_DECIMAL_SHIFT || 0
 
@@ -149,10 +150,10 @@ async function initializeBridge({ validatorsBridge, bridge, erc677token }) {
         //     ).encodeABI()
     }
 
-    sleep(3000)
-
-    const tronWeb = getTronWeb(url)
-    const result = tronWeb.trx.getTransaction(txHash)
+    // sleep(3000)
+    // const tronWeb = getTronWeb(url)
+    // const result = tronWeb.trx.getTransaction(txHash)
+    const result = getTxStatus(url, txHash)
     console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
     assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 
@@ -182,8 +183,6 @@ async function deployHomeOnDpos() {
         isRewardableBridge && BLOCK_REWARD_ADDRESS === ZERO_ADDRESS ? RewardableValidators : BridgeValidators
     const bridgeValidatorsHome = await deployContractOnDpos(bridgeValidatorsContract, [], "home")
     console.log('[Home] BridgeValidators Implementation: ', bridgeValidatorsHome.address)
-
-    //todo 检测合约是否存在！bridgeValidatorsContract、storageValidatorsHome
 
     console.log('\n[Home] Hooking up eternal storage to BridgeValidators')
     await upgradeProxyOnDpos({
@@ -251,13 +250,12 @@ async function deployHomeOnDpos() {
     if ((isRewardableBridge && BLOCK_REWARD_ADDRESS !== ZERO_ADDRESS) || DEPLOY_REWARDABLE_TOKEN) {
         console.log('\n[Home] Set BlockReward contract on ERC677BridgeTokenRewardable')
         const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
-        //todo 合约方法不高亮
         const txHash = await erc677BridgeTokenContact.setBlockRewardContract(BLOCK_REWARD_ADDRESS).send()
 
-        sleep(3000)
-
-        const tronWeb = getTronWeb(url)
-        const result = tronWeb.trx.getTransaction(txHash)
+        // sleep(3000)
+        // const tronWeb = getTronWeb(url)
+        // const result = tronWeb.trx.getTransaction(txHash)
+        const result = getTxStatus(url, txHash)
         console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
         assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
         // const setBlockRewardContract = await sendRawTxHome({
@@ -272,13 +270,12 @@ async function deployHomeOnDpos() {
     if (DEPLOY_REWARDABLE_TOKEN) {
         console.log('\n[Home] set Staking contract on ERC677BridgeTokenRewardable')
         const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
-        //todo 合约方法不高亮
         const txHash = await erc677BridgeTokenContact.setStakingContract(DPOS_STAKING_ADDRESS).send()
 
-        sleep(3000)
-
-        const tronWeb = getTronWeb(url)
-        const result = tronWeb.trx.getTransaction(txHash)
+        // sleep(3000)
+        // const tronWeb = getTronWeb(url)
+        // const result = tronWeb.trx.getTransaction(txHash)
+        const result = getTxStatus(url, txHash)
         console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
         assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
         // const setStakingContractData = await erc677token.methods
@@ -317,11 +314,12 @@ async function deployHomeOnDpos() {
     })
 
     console.log('\n[Home] Home Deployment Bridge completed\n')
+    const khcWeb = getKhcWeb(url)
+    const block = khcWeb.khc.getCurrentBlock()
     return {
         homeBridge: {
             address: homeBridgeStorage.address,
-            //todo
-            deployedBlockNumber: Web3Utils.hexToNumber(homeBridgeStorage.deployedBlockNumber)
+            deployedBlockNumber: block.block_header.raw_data.number
         },
         erc677: { address: erc677token.address }
     }

@@ -7,7 +7,7 @@ const {
   DEPLOY_REWARDABLE_TOKEN,
   DPOS_STAKING_ADDRESS
 } = require('../loadEnv')
-const { tronWebHome } = require('./tronWeb3')
+const { tronWebHome } = require('../tronWeb3')
 const { isContract } = require('../deploymentUtils')
 const {
   foreignContracts: {

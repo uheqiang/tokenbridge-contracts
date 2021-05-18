@@ -6,6 +6,7 @@ const {
     FOREIGN_RPC_URL,
     GET_RECEIPT_INTERVAL_IN_MILLISECONDS,
     DEPLOYMENT_ACCOUNT_PRIVATE_KEY,
+    TRON_DEPLOYMENT_ACCOUNT_PRIVATE_KEY,
     HOME_EXPLORER_URL,
     FOREIGN_EXPLORER_URL,
     HOME_EXPLORER_API_KEY,
@@ -15,12 +16,13 @@ const {
 
 const tronWebHome = new TronWeb({
     fullHost: HOME_RPC_URL,
-    privateKey: DEPLOYMENT_ACCOUNT_PRIVATE_KEY
+    // headers: { "TRON-PRO-API-KEY": 'wallet/deploycontract' },
+    privateKey: TRON_DEPLOYMENT_ACCOUNT_PRIVATE_KEY
 })
 
 const tronWebForeign = new TronWeb({
     fullHost: FOREIGN_RPC_URL,
-    privateKey: DEPLOYMENT_ACCOUNT_PRIVATE_KEY
+    privateKey: TRON_DEPLOYMENT_ACCOUNT_PRIVATE_KEY
 })
 
 const deploymentPrivateKey = Buffer.from(DEPLOYMENT_ACCOUNT_PRIVATE_KEY, 'hex')
