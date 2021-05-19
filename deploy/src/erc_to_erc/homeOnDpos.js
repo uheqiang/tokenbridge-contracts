@@ -19,7 +19,7 @@ const {
     getKhcWeb
 } = require('../deploymentUtilsOnDpos')
 
-const {deploymentPrivateKey, HOME_RPC_URL } = require('../khcWeb3')
+const {khcWebHome, HOME_RPC_URL } = require('../khcWeb3')
 
 const {
     homeContracts: {
@@ -37,7 +37,6 @@ const {
 const VALIDATORS = env.VALIDATORS.split(' ')
 
 const {
-    KHC_DEPLOYMENT_ACCOUNT_PRIVATE_KEY,
     REQUIRED_NUMBER_OF_VALIDATORS,
     HOME_BRIDGE_OWNER,
     HOME_VALIDATORS_OWNER,
@@ -95,37 +94,41 @@ async function initializeBridge({ validatorsBridge, bridge, erc677token }) {
     Fee Manager: ${feeManager.options.address},
     Home Fee: ${homeFeeInWei} which is ${HOME_TRANSACTIONS_FEE * 100}%
     Foreign Fee: ${foreignFeeInWei} which is ${FOREIGN_TRANSACTIONS_FEE * 100}%`)*/
-        console.log(`Home Validators: ${validatorsBridge.options.address},
+        console.log(`Home Validators: ${validatorsBridge.address},
                      HOME_GAS_PRICE: ${HOME_GAS_PRICE}, 
                      HOME_REQUIRED_BLOCK_CONFIRMATIONS : ${HOME_REQUIRED_BLOCK_CONFIRMATIONS},
                      Block Reward: ${BLOCK_REWARD_ADDRESS},
-                     Fee Manager: ${feeManager.options.address}`)
+                     Fee Manager: ${feeManager.address}`)
 
         sleep(3000)
 
-        const bridgeContract = getContract(HOME_RPC_URL, bridge)
+        // const bridgeContract = getContract(HOME_RPC_URL, bridge)
+        const bridgeContract = await khcWebHome.contract().at(bridge)
         txHash = await bridgeContract.rewardableInitialize(
                 validatorsBridge.address,
                 [HOME_DAILY_LIMIT.toString(), HOME_MAX_AMOUNT_PER_TX.toString(), HOME_MIN_AMOUNT_PER_TX.toString()],
                 HOME_GAS_PRICE,
                 HOME_REQUIRED_BLOCK_CONFIRMATIONS,
-                erc677token.options.address,
+                erc677token.address,
                 [FOREIGN_DAILY_LIMIT.toString(), FOREIGN_MAX_AMOUNT_PER_TX.toString()],
                 HOME_BRIDGE_OWNER,
-                feeManager.options.address,
+                feeManager.address,
                 [homeFeeInWei.toString(), foreignFeeInWei.toString()],
                 BLOCK_REWARD_ADDRESS,
                 foreignToHomeDecimalShift
             ).send()
     } else {
-        console.log(`Home Validators: ${validatorsBridge.options.address},
+        console.log(`Home Validators: ${validatorsBridge.address},
     HOME_DAILY_LIMIT : ${HOME_DAILY_LIMIT} which is HOME_DAILY_LIMIT in trx,
     HOME_MAX_AMOUNT_PER_TX: ${HOME_MAX_AMOUNT_PER_TX} which is HOME_MAX_AMOUNT_PER_TX in trx,
     HOME_MIN_AMOUNT_PER_TX: ${HOME_MIN_AMOUNT_PER_TX} which is HOME_MIN_AMOUNT_PER_TX in trx,
     HOME_REQUIRED_BLOCK_CONFIRMATIONS : ${HOME_REQUIRED_BLOCK_CONFIRMATIONS},
-    FOREIGN_TO_HOME_DECIMAL_SHIFT: ${foreignToHomeDecimalShift}
+    FOREIGN_TO_HOME_DECIMAL_SHIFT: ${foreignToHomeDecimalShift},
+    ERC677TOKEN_ADDRESS: ${erc677token.address},
+    VALIDATORSBRIDGE_ADDRESS: ${validatorsBridge.address}
     `)
-        const bridgeContract = getContract(HOME_RPC_URL, bridge)
+        // const bridgeContract = getContract(HOME_RPC_URL, bridge)
+        const bridgeContract = await khcWebHome.contract().at(bridge.address)
         // HomeBridgeErcToErcPOSDAO.sol or HomeBridgeErcToErc.sol
         txHash = bridgeContract.initialize(
             validatorsBridge.address,
@@ -137,40 +140,11 @@ async function initializeBridge({ validatorsBridge, bridge, erc677token }) {
             HOME_BRIDGE_OWNER,
             foreignToHomeDecimalShift
         )
-        // initializeHomeBridgeData = await bridge.methods
-        //     .initialize(
-        //         validatorsBridge.address,
-        //         [HOME_DAILY_LIMIT.toString(), HOME_MAX_AMOUNT_PER_TX.toString(), HOME_MIN_AMOUNT_PER_TX.toString()],
-        //         HOME_GAS_PRICE,
-        //         HOME_REQUIRED_BLOCK_CONFIRMATIONS,
-        //         erc677token.address,
-        //         [FOREIGN_DAILY_LIMIT.toString(), FOREIGN_MAX_AMOUNT_PER_TX.toString()],
-        //         HOME_BRIDGE_OWNER,
-        //         foreignToHomeDecimalShift
-        //     ).encodeABI()
     }
 
-    // sleep(3000)
-    // const tronWeb = getTronWeb(url)
-    // const result = tronWeb.trx.getTransaction(txHash)
-    const result = getTxStatus(url, txHash)
-    console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
-    assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
-
-    // const txInitializeHomeBridge = await sendRawTxHome({
-    //     data: initializeHomeBridgeData,
-    //     nonce,
-    //     to: bridge.options.address,
-    //     privateKey: deploymentPrivateKey,
-    //     url: HOME_RPC_URL
-    // })
-    // if (txInitializeHomeBridge.status) {
-    //     assert.strictEqual(Web3Utils.hexToNumber(txInitializeHomeBridge.status), 1, 'Transaction Failed')
-    // } else {
-    //     await assertStateWithRetry(bridge.methods.isInitialized().call, true)
-    // }
-
-    // return nonce
+    // const result = getTxStatus(url, txHash)
+    // console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
+    // assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
 }
 
 async function deployHomeOnDpos() {
@@ -193,7 +167,7 @@ async function deployHomeOnDpos() {
     })
 
     console.log('\n[Home] Initializing Home Bridge Validators with following parameters:\n')
-    bridgeValidatorsHome.address = storageValidatorsHome.address
+    //bridgeValidatorsHome.address = storageValidatorsHome.address
     await initializeValidators({
         contract: bridgeValidatorsHome,
         isRewardableBridge: isRewardableBridge && BLOCK_REWARD_ADDRESS === ZERO_ADDRESS,
@@ -252,19 +226,9 @@ async function deployHomeOnDpos() {
         const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
         const txHash = await erc677BridgeTokenContact.setBlockRewardContract(BLOCK_REWARD_ADDRESS).send()
 
-        // sleep(3000)
-        // const tronWeb = getTronWeb(url)
-        // const result = tronWeb.trx.getTransaction(txHash)
-        const result = getTxStatus(url, txHash)
-        console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
-        assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
-        // const setBlockRewardContract = await sendRawTxHome({
-        //     data: setBlockRewardContractData,
-        //     to: erc677token.options.address,
-        //     privateKey: deploymentPrivateKey,
-        //     url: HOME_RPC_URL
-        // })
-        // assert.strictEqual(Web3Utils.hexToNumber(setBlockRewardContract.status), 1, 'Transaction Failed')
+        // const result = getTxStatus(url, txHash)
+        // console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
+        // assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
     }
 
     if (DEPLOY_REWARDABLE_TOKEN) {
@@ -272,22 +236,9 @@ async function deployHomeOnDpos() {
         const erc677BridgeTokenContact = getContract(HOME_RPC_URL, erc677token.address)
         const txHash = await erc677BridgeTokenContact.setStakingContract(DPOS_STAKING_ADDRESS).send()
 
-        // sleep(3000)
-        // const tronWeb = getTronWeb(url)
-        // const result = tronWeb.trx.getTransaction(txHash)
-        const result = getTxStatus(url, txHash)
-        console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
-        assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
-        // const setStakingContractData = await erc677token.methods
-        //     .setStakingContract(DPOS_STAKING_ADDRESS)
-        //     .encodeABI({ from: DEPLOYMENT_ACCOUNT_ADDRESS })
-        // const setStakingContract = await sendRawTxHome({
-        //     data: setStakingContractData,
-        //     to: erc677token.options.address,
-        //     privateKey: deploymentPrivateKey,
-        //     url: HOME_RPC_URL
-        // })
-        // assert.strictEqual(Web3Utils.hexToNumber(setStakingContract.status), 1, 'Transaction Failed')
+        // const result = getTxStatus(url, txHash)
+        // console.log('[Home] Set bridge contract, tx exec status: ', result.ret[0].contractRet)
+        // assert.strictEqual(result.ret[0].contractRet, 'SUCCESS', 'Transaction Failed')
     }
 
     console.log('[Home] transferring ownership of Bridgeble token to homeBridge contract')
@@ -298,7 +249,7 @@ async function deployHomeOnDpos() {
     })
 
     console.log('\n[Home] initializing Home Bridge with following parameters:\n')
-    homeBridgeImplementation.address = homeBridgeStorage.address
+    // homeBridgeImplementation.address = homeBridgeStorage.address
 
     await initializeBridge({
         validatorsBridge: storageValidatorsHome,
@@ -314,8 +265,8 @@ async function deployHomeOnDpos() {
     })
 
     console.log('\n[Home] Home Deployment Bridge completed\n')
-    const khcWeb = getKhcWeb(url)
-    const block = khcWeb.khc.getCurrentBlock()
+    // const khcWeb = getKhcWeb(url)
+    const block = await khcWebHome.khc.getCurrentBlock()
     return {
         homeBridge: {
             address: homeBridgeStorage.address,

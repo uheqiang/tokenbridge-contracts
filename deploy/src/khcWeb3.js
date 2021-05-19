@@ -5,7 +5,6 @@ const {
     HOME_RPC_URL,
     FOREIGN_RPC_URL,
     GET_RECEIPT_INTERVAL_IN_MILLISECONDS,
-    DEPLOYMENT_ACCOUNT_PRIVATE_KEY,
     KHC_DEPLOYMENT_ACCOUNT_PRIVATE_KEY,
     HOME_EXPLORER_URL,
     FOREIGN_EXPLORER_URL,
@@ -30,7 +29,7 @@ const khcWebHome = new KhcExtension({
     privateKey: KHC_DEPLOYMENT_ACCOUNT_PRIVATE_KEY
 })
 
-// khcWebHome.khc.getContract('2eec56158582b38470dd85f9628402699fca4deb88').then(console.log)
+// khcWebHome.khc.getContract('2e0fd1e1583b5fad7411d2e75eebbd47961e412ddb').then(console.log)
 
 // const fullNodeForeign = new HttpProvider(FOREIGN_RPC_URL);
 // const khcWebForeign = new KhcExtension({fullNodeForeign, KHC_DEPLOYMENT_ACCOUNT_PRIVATE_KEY});
@@ -46,7 +45,7 @@ const khcWebForeign = new KhcExtension({
 //     privateKey: TRON_DEPLOYMENT_ACCOUNT_PRIVATE_KEY
 // })
 
-const deploymentPrivateKey = Buffer.from(DEPLOYMENT_ACCOUNT_PRIVATE_KEY, 'hex')
+const deploymentPrivateKey = Buffer.from(KHC_DEPLOYMENT_ACCOUNT_PRIVATE_KEY, 'hex')
 
 module.exports = {
     khcWebHome,
