@@ -34,15 +34,15 @@ async function deployNativeToErc() {
 }
 
 async function deployErcToErc() {
-  const preDeploy = require('./src/erc_to_erc/preDeploy')
-  const deployHomeOnDpos = require('./src/erc_to_erc/homeOnDpos')
+  // const preDeploy = require('./src/erc_to_erc/preDeploy')
+  const deployHomeOnKhc = require('./src/erc_to_erc/homeOnKhc')
   const deployForeignOnEthereum = require('./src/erc_to_erc/foreignOnEthereum')
-  await preDeploy()
-  const { homeBridge, erc677 } = await deployHomeOnDpos()
+  // await preDeploy()
+  const { homeBridge, erc677 } = await deployHomeOnKhc()
   const { foreignBridge } = await deployForeignOnEthereum()
   console.log('\nDeployment has been completed.\n\n')
-  console.log(`[   Home  ] HomeBridge: ${homeBridge.address} at block ${homeBridge.deployedBlockNumber}`)
-  console.log(`[   Home  ] ERC677 Bridgeable Token: ${erc677.address}`)
+  // console.log(`[   Home  ] HomeBridge: ${homeBridge.address} at block ${homeBridge.deployedBlockNumber}`)
+  // console.log(`[   Home  ] ERC677 Bridgeable Token: ${erc677.address}`)
   console.log(`[ Foreign ] ForeignBridge: ${foreignBridge.address} at block ${foreignBridge.deployedBlockNumber}`)
   console.log(`[ Foreign ] ERC20 Token: ${ERC20_TOKEN_ADDRESS}`)
   writeDeploymentResults({
